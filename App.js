@@ -4,8 +4,55 @@ class App{
         App.table.make($("#field"));
         App.field = new Field();
         App.field.addCurrentTetrimino(new Tetrimino("T", new Vector2(0, 0)));
-        App.table.show(App.field);
+        App.show();
+        App.addEventListeners();
+        setInterval(()=>{
+            App.field.tick();
+            App.show();
+        }, 700);
         console.log("done");
+    }
+
+    static show(){
+        App.table.show(App.field);
+    }
+
+    static down(){
+        App.field.downCurrentTetrimino();
+        App.show();
+    }
+
+    // windowに対してキー入力のイベントリスナーを追加
+    static addEventListeners(){
+        $(window).on("keydown", (e)=>{
+            App.keydown(e.which);
+        });
+    }
+
+    // キー入力があった場合の処理
+    static keydown(keyCode){
+        if(Keys[keyCode] != undefined){
+            switch(Keys[keyCode]){
+                case "left":
+                case "right":
+                case "down":
+                    App.field.moveCurrentTetrimino(Keys[keyCode]);
+                    App.show();
+                    break;
+                case "antiClockwize":
+                    App.field.rotateAntiClockwizeCurrentTetrimino();
+                    App.show();
+                    break;
+                case "clockwize":
+                    App.field.rotateClockwizeCurrentTetrimino();
+                    App.show();
+                    break;
+                case "up":
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 }
 
@@ -80,12 +127,14 @@ class Field{
             }
         }
         this.currentTetrimino = null;
+        this.dicider = new TetriminoDicider();
     }
 
     // 落ちてくるテトリミノを追加します。
     // Tetrimino tetrimino: 追加するテトリミノのオブジェクト
     addCurrentTetrimino(tetrimino){
         this.currentTetrimino = tetrimino;
+        this.currentTetrimino.location = new Vector2(3, 20);
         this.expantionTetrimino(this.currentTetrimino);
     }
 
@@ -117,9 +166,75 @@ class Field{
     }
 
     downCurrentTetrimino(){
-        this.currentTetrimino.move("down");
+        this.moveCurrentTetrimino("down");
+    }
+
+    moveCurrentTetrimino(direction, distance = 1){
+        var moved = this.currentTetrimino.clone();
+        moved.move(direction, distance);
+        if(this.canMoveTetrimino(moved)){
+            this.currentTetrimino = moved;
+            this.reloadCurrentTetrimino();
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    // movedで渡されたテトリミノがそこに存在できるかどうかを返します。
+    // Tetrimino moved: 動かされたテトリミノ
+    canMoveTetrimino(moved){
+        var blocks = moved.getBlockLocations();
+        var canMove = true;
+        blocks.forEach((value)=>{
+            if(!this.isExistsLocation(value) || this.field[value.y][value.x].isRockedDown){
+                canMove = false;
+            }
+        });
+        console.log(canMove);
+        return canMove;
+    }
+
+    // 指定された座標が存在するかどうか（フィールド内であるかどうか）を返す。
+    // Vector2 location: 座標
+    isExistsLocation(location){
+        return !(this.field[location.y] == undefined || this.field[location.y][location.x] == undefined)
+    }
+
+    // カレントテトリミノを時計回りに回転する。
+    // int number: 回転する回数
+    rotateClockwizeCurrentTetrimino(number = 1){
+        this.currentTetrimino.rotateClockwize(number);
+        this.reloadCurrentTetrimino();
+    }
+
+    // カレントテトリミノを反時計回りに回転する。
+    // int number: 回転する回数
+    rotateAntiClockwizeCurrentTetrimino(number = 1){
+        this.currentTetrimino.rotateAntiClockwize(number);
+        this.reloadCurrentTetrimino();
+    }
+
+    reloadCurrentTetrimino(){
         this.removeAirBlock();
         this.expantionTetrimino(this.currentTetrimino);
+    }
+
+    tick(){
+        var moved = this.moveCurrentTetrimino("down");
+        if(!moved){
+            this.rockdown();
+        }
+    }
+
+    rockdown(){
+        this.currentTetrimino.rockdown();
+        this.doToAllblock((value)=>{
+            if(!value.isRockedDown){
+                value.rockDown();
+            }
+        });
+        this.addCurrentTetrimino(new Tetrimino(this.dicider.get(), new Vector2(0,0)));
     }
 }
 
@@ -136,10 +251,8 @@ class Block{
 
     // isRockedDownをtrueに設定する。
     rockDown(){
-        if(isBlock){
+        if(this.isBlock){
             this.isRockedDown = true;
-        }else{
-            throw new Error("ブロックが存在しないマスをRockDownすることはできません。");
         }
     }
 }
@@ -154,14 +267,24 @@ class Tetrimino{
         this.location = location;
         this.rotatePatternNum = TetriminoForms[block].length;
         this.rotate = rotate % this.rotatePatternNum;
-        this.blockLocations = TetriminoForms[block][this.rotate];
+        this.blockLocations = [];
+        this.setBlockLocations();
+        this.rockedDown = false;
+    }
+
+    rockdown(){
+        this.rockedDown = true;
+    }
+
+    setBlockLocations(){
+        this.blockLocations = TetriminoForms[this.block][this.rotate];
     }
 
     getBlockLocations(originPoint = null){
         var origin = originPoint == null ? this.location : originPoint;
         var rets = [];
         this.blockLocations.forEach((value)=>{
-            var location = Object.assign({}, value);
+            var location = value.clone();
             location.x += origin.x;
             location.y += origin.y;
             rets.push(location);
@@ -173,12 +296,47 @@ class Tetrimino{
     // string direction: up, down, right, leftのいずれか
     // int distance: 何マス動かすか
     move(direction, distance = 1){
+        if(this.rockedDown){
+            return;
+        }
         if(direction == "up" || direction == "down"){
             this.location.y += direction == "up" ? distance : distance * -1;
         }
         if(direction == "right" || direction == "left"){
             this.location.x += direction == "right" ? distance : distance * -1;
         }
+    }
+
+    //回転する
+    // int rotateNumber: 回転する回数　正の数：反時計回り 負の数：時計回り
+    rotateTetrimino(rotateNumber){
+        if(this.rockedDown){
+            return;
+        }
+        this.rotate = (this.rotate + rotateNumber) % this.rotatePatternNum;
+        if(this.rotate < 0){
+            this.rotate = this.rotatePatternNum + this.rotate;
+        }
+        this.setBlockLocations();
+        console.log(this.rotatePatternNum, this.rotate);
+        console.log(this.blockLocations);
+    }
+
+    // 時計回りに回転する
+    // int number: 回転する回数
+    rotateClockwize(number = 1){
+        this.rotateTetrimino(number * -1);
+    }
+
+    // 反時計回りに回転する
+    // int number: 回転する回数
+    rotateAntiClockwize(number = 1){
+        this.rotateTetrimino(number);
+    }
+
+    // オブジェクトをコピーして返します。
+    clone(){
+        return new Tetrimino(this.block, this.location.clone(), this.rotate);
     }
 }
 
@@ -190,6 +348,10 @@ class DistanceVector2{
         this.x = x;
         this.y = y;
     }
+
+    clone(){
+        return new DistanceVector2(this.x, this.y);
+    }
 }
 
 
@@ -200,6 +362,61 @@ class Vector2{
     constructor(x, y){
         this.x = x;
         this.y = y;
+    }
+
+    clone(){
+        return new Vector2(this.x, this.y);
+    }
+}
+
+class TetriminoDicider{
+    constructor(keepSets = 1){
+        this.tetriminoPatterns = TetriminoForms.length;
+        this.keepSets = keepSets;
+        this.currentSet = [];
+        this.reserveSets = [];
+        this.makeSetsWhileNeeds();
+    }
+
+    get(){
+        var ret = this.currentSet[0];
+        this.currentSet.shift();
+        this.makeSetsWhileNeeds();
+        return ret;
+    }
+
+    isNeedsMakeSet(){
+        return this.reserveSets.length < this.keepSets
+    }
+
+    makeSetsWhileNeeds(){
+        this.ReplenishCurrentSet();
+        while(this.isNeedsMakeSet()){
+            this.makeSet();
+        }
+    }
+
+    makeSet(){
+        var min = 0;
+        var max = 0;
+        var randNum = 0;
+        var patterns = ["I", "O", "S", "Z", "J", "L", "T"];
+        var set = [];
+        while(patterns.length > 0){
+            max = patterns.length - 1;
+            randNum = Math.floor(Math.random() * (max + 1 - min)) + min;
+            set.push(patterns[randNum]);
+            patterns.splice(randNum, 1);
+        }
+        this.reserveSets.push(set);
+        this.ReplenishCurrentSet();
+    }
+
+    ReplenishCurrentSet(){
+        if(this.currentSet == undefined || this.currentSet.length <= 0){
+            this.currentSet = this.reserveSets[0];
+            this.reserveSets.shift();
+        }
     }
 }
 
@@ -348,6 +565,17 @@ var Colors = {
     "J": "#3F51B5",
     "L": "#FF9800",
     "T": "#673AB7"
+};
+
+
+// 操作キー
+var Keys = {
+    87: "up",
+    65: "left",
+    83: "down",
+    68: "right",
+    37: "antiClockwize",
+    38: "clockwize"
 };
 
 App.main();
