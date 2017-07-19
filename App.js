@@ -10,6 +10,9 @@ class App{
             App.field.tick();
             App.show();
         }, 700);
+        App.field.addGameOverEvent(()=>{
+            console.log("GameOver.");
+        });
         console.log("done");
     }
 
@@ -128,14 +131,40 @@ class Field{
         }
         this.currentTetrimino = null;
         this.dicider = new TetriminoDicider();
+        this.gameOverEvent = null;
+        this.gameOvered = false;
+        this.needRockdown = false;
+        setInterval(()=>{
+            if(this.needRockdown){
+                this.needRockdown = false;
+                this.rockdown();
+            }
+        }, 10);
     }
 
     // 落ちてくるテトリミノを追加します。
     // Tetrimino tetrimino: 追加するテトリミノのオブジェクト
     addCurrentTetrimino(tetrimino){
-        this.currentTetrimino = tetrimino;
-        this.currentTetrimino.location = new Vector2(3, 20);
-        this.expantionTetrimino(this.currentTetrimino);
+        var setted = tetrimino.clone();
+        setted.location = new Vector2(3, 20);
+        if(!this.canMoveTetrimino(setted)){
+            console.log(this.currentTetrimino);
+            if(this.gameOverEvent != null){
+                this.gameOvered = true;
+                this.gameOverEvent();
+            }
+        }
+        this.currentTetrimino = setted;
+        console.log("generated tetrimino");
+        this.reloadCurrentTetrimino();
+    }
+    // ---------------
+    // ラインを消す時に配列ごと代入してるのがいけない気がするけどわからない
+    // ---------------
+
+    // ゲームオーバー時のイベントを追加します。
+    addGameOverEvent(func){
+        this.gameOverEvent = func;
     }
 
     // テトリミノをフィールド上に展開する。
@@ -143,6 +172,8 @@ class Field{
         var points = tetrimino.getBlockLocations();
         points.forEach((value)=>{
             if(this.field[value.y] != undefined && this.field[value.x] != undefined){
+                //debug
+                console.log(value);
                 this.field[value.y][value.x] = new Block(true, tetrimino.block, false);
             }
         });
@@ -177,6 +208,9 @@ class Field{
             this.reloadCurrentTetrimino();
             return true;
         }else{
+            if(direction == "down"){
+                this.needRockdown = true;
+            }
             return false;
         }
     }
@@ -188,6 +222,11 @@ class Field{
         var canMove = true;
         blocks.forEach((value)=>{
             if(!this.isExistsLocation(value) || this.field[value.y][value.x].isRockedDown){
+                //debug
+                console.log(value);
+                if(this.field[value.y] != undefined){
+                    console.log(this.field[value.y][value.x]);
+                }
                 canMove = false;
             }
         });
@@ -204,26 +243,40 @@ class Field{
     // カレントテトリミノを時計回りに回転する。
     // int number: 回転する回数
     rotateClockwizeCurrentTetrimino(number = 1){
-        this.currentTetrimino.rotateClockwize(number);
-        this.reloadCurrentTetrimino();
+        this.rotateCurrentTetrimino(number * -1);
     }
 
     // カレントテトリミノを反時計回りに回転する。
     // int number: 回転する回数
     rotateAntiClockwizeCurrentTetrimino(number = 1){
-        this.currentTetrimino.rotateAntiClockwize(number);
+        this.rotateCurrentTetrimino(number);
+    }
+
+    // カレントテトリミノを回転する。
+    // int number: 回転する回数　正の数：反時計回り 負の数：時計回り
+    rotateCurrentTetrimino(number){
+        var moved = this.currentTetrimino.clone();
+        moved.rotateTetrimino(number);
+        if(this.canMoveTetrimino(moved)){
+            this.currentTetrimino = moved;
+        }
         this.reloadCurrentTetrimino();
     }
 
+    // カレントテトリミノを更新する。
     reloadCurrentTetrimino(){
         this.removeAirBlock();
         this.expantionTetrimino(this.currentTetrimino);
     }
 
+    // setInterval()などを用いてこのメソッドを任意の間隔で呼び出してください。
     tick(){
+        if(this.gameOvered){
+            return;
+        }
         var moved = this.moveCurrentTetrimino("down");
         if(!moved){
-            this.rockdown();
+            this.needRockdown = true;
         }
     }
 
@@ -234,7 +287,44 @@ class Field{
                 value.rockDown();
             }
         });
+        this.removeLines();
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get(), new Vector2(0,0)));
+    }
+
+    removeLines(){
+        var completedLines = this.getCompletedLine();
+        var removedLineCount = 0;
+        this.field.forEach((value, index)=>{
+            if(completedLines.indexOf(index) >= 0){
+                removedLineCount++;
+            }else{
+                this.field[index - removedLineCount] = value;
+                console.log("Line moved");
+            }
+        });
+        // このままだと上から消したライン分に参照が残るので以下のコードで初期化
+        for(var i = this.field.length - removedLineCount; i < this.field.length; i++){
+            this.field[i] = [];
+            for(var x = 0; x < this.sizeX; x++){
+                this.field[i][x] = new Block();
+            }
+        }
+    }
+
+    getCompletedLine(){
+        var lines = [];
+        this.field.forEach((valueY, index)=>{
+            var completed = true;
+            valueY.forEach((valueX)=>{
+                if(!valueX.isBlock){
+                    completed = false;
+                }
+            });
+            if(completed){
+                lines.push(index);
+            }
+        });
+        return lines;
     }
 }
 
@@ -262,9 +352,9 @@ class Tetrimino{
     // string block: ブロックの種類を示す文字
     // int rotate: 回転された状態のテトリミノを生成する場合は指定する
     // Vector2 location: ブロックの基準点の座標
-    constructor(block, location, rotate = 0){
+    constructor(block, location = null, rotate = 0){
         this.block = block;
-        this.location = location;
+        this.location = location == null ? new Vector2() : location;
         this.rotatePatternNum = TetriminoForms[block].length;
         this.rotate = rotate % this.rotatePatternNum;
         this.blockLocations = [];
@@ -344,7 +434,7 @@ class Tetrimino{
 class DistanceVector2{
     // int x: x軸の距離
     // int y: y軸の距離
-    constructor(x, y){
+    constructor(x = 0, y = 0){
         this.x = x;
         this.y = y;
     }
@@ -359,7 +449,7 @@ class DistanceVector2{
 class Vector2{
     // int x: xの座標
     // int y: yの座標
-    constructor(x, y){
+    constructor(x = 0, y = 0){
         this.x = x;
         this.y = y;
     }
