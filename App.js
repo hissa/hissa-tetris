@@ -68,6 +68,9 @@ class App{
                     App.show();
                     break;
                 case "up":
+                    console.log("up");
+                    App.field.hardDrop();
+                    App.show();
                     break;
                 case "hold":
                     App.field.holdTetrimino();
@@ -448,6 +451,25 @@ class Field{
             this.reloadCurrentTetrimino();
             this.usedHold = true;
         }
+    }
+
+    hardDrop(){
+        var moved = this.currentTetrimino.clone();
+        var moved2;
+        var end = false;
+        do{
+            moved2 = moved.clone();
+            moved2.move("down");
+            console.log("can", this.canMoveTetrimino(moved2), moved2);
+            if(this.canMoveTetrimino(moved2)){
+                moved = moved2.clone();
+            }else{
+                this.currentTetrimino = moved.clone();
+                this.reloadCurrentTetrimino();
+                this.needRockdown = true;
+                end = true;
+            }
+        }while(!end)
     }
 }
 
