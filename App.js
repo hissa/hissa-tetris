@@ -125,8 +125,8 @@ class FieldTable{
         this.cells.forEach((valueRow, indexY)=>{
             valueRow.forEach((valueColumn, indexX)=>{
                 func(valueColumn, indexY, indexX);
-            })
-        })
+            });
+        });
     }
 
     // 画面を描画する。
@@ -134,9 +134,14 @@ class FieldTable{
     show(field){
         this.doToAllCell((obj, indexY, indexX)=>{
             if(field.field[indexY][indexX] != undefined){
-                obj.css({ "background-color": Colors[field.field[indexY][indexX].color] });
+                if(!field.field[indexY][indexX].ghost){
+                    obj.css({ "background-color": Colors[field.field[indexY][indexX].color] });
+                }else{
+                    // obj.css({ "border-color": Colors[field.field[indexY][indexX].color] });
+                    obj.css({ "background-color": GhostColors[field.field[indexY][indexX].color] });
+                }
             }
-        })
+        });
     }
 }
 
@@ -258,13 +263,13 @@ class Field{
     }
 
     // テトリミノをフィールド上に展開する。
-    expantionTetrimino(tetrimino){
+    expantionTetrimino(tetrimino, ghost = false){
         var points = tetrimino.getBlockLocations();
         points.forEach((value)=>{
             if(this.field[value.y] != undefined && this.field[value.y][value.x] != undefined){
                 //debug
                 console.log(value);
-                this.field[value.y][value.x] = new Block(true, tetrimino.block, false);
+                this.field[value.y][value.x] = new Block(true, tetrimino.block, false, ghost);
             }
         });
     }
@@ -375,6 +380,7 @@ class Field{
     // カレントテトリミノを更新する。
     reloadCurrentTetrimino(){
         this.removeAirBlock();
+        this.makeGhost();
         this.expantionTetrimino(this.currentTetrimino);
     }
 
@@ -454,8 +460,20 @@ class Field{
     }
 
     hardDrop(){
+        this.currentTetrimino = this.getGhost().clone();
+        this.reloadCurrentTetrimino();
+        this.needRockdown = true;
+    }
+
+    makeGhost(){
+        var ghostTetrimino = this.getGhost();
+        this.expantionTetrimino(ghostTetrimino, true);
+    }
+
+    getGhost(){
         var moved = this.currentTetrimino.clone();
         var moved2;
+        var ret;
         var end = false;
         do{
             moved2 = moved.clone();
@@ -464,12 +482,11 @@ class Field{
             if(this.canMoveTetrimino(moved2)){
                 moved = moved2.clone();
             }else{
-                this.currentTetrimino = moved.clone();
-                this.reloadCurrentTetrimino();
-                this.needRockdown = true;
+                ret = moved;
                 end = true;
             }
         }while(!end)
+        return ret;
     }
 }
 
@@ -478,10 +495,11 @@ class Block{
     // bool isBlock: ブロックであるかどうか
     // string color: Colorsで定義された色を示す文字列
     // bool isRockedDown 既にロックダウンしているかどうか
-    constructor(isBlock, color = "default", isRockedDown = false){
+    constructor(isBlock, color = "default", isRockedDown = false, ghost = false){
         this.isBlock = isBlock;
         this.color = color;
         this.isRockedDown = isRockedDown;
+        this.ghost = ghost;
     }
 
     // isRockedDownをtrueに設定する。
@@ -814,6 +832,18 @@ var Colors = {
     "J": "#3F51B5",
     "L": "#FF9800",
     "T": "#673AB7"
+};
+
+// ゴーストの色
+var GhostColors = {
+    "default": "#ffffff",
+    "I": "#81CCEE",
+    "O": "#FFF595",
+    "S": "#ABC48E",
+    "Z": "#FFB098",
+    "J": "#7982B1",
+    "L": "#FFDAA0",
+    "T": "#9887B5"
 };
 
 
