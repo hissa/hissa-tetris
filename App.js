@@ -3,6 +3,7 @@ class App{
         App.table = new FieldTable(10, 20);
         App.table.make($("#field"));
         App.field = new Field();
+        App.makeShowTetriminoTables();
         App.field.start();
         App.show();
         App.addEventListeners();
@@ -16,8 +17,21 @@ class App{
         console.log("done");
     }
 
+    static makeShowTetriminoTables(){
+        App.hold = new ShowTetriminoTable();
+        App.hold.make($("#hold"));
+        App.nexts = [];
+        for(var i = 0; i <= 4; i++){
+            App.nexts[i] = new ShowTetriminoTable();
+            App.nexts[i].make($("#next{0}".format(i)));
+        }
+    }
+
     static show(){
         App.table.show(App.field);
+        for(var i = 0; i<= 4; i++){
+            App.nexts[i].addTetrimino(new Tetrimino(App.field.dicider.getNext(i)));
+        }
     }
 
     static down(){
@@ -92,7 +106,7 @@ class FieldTable{
                 "height": "32px",
                 "width": "32px"
             });
-        })
+        });
     }
 
     // 全てのセルに対して処理をする。
@@ -113,6 +127,68 @@ class FieldTable{
                 obj.css({ "background-color": Colors[field.field[indexY][indexX].color] });
             }
         })
+    }
+}
+
+class ShowTetriminoTable{
+    constructor(){
+        this.uniqueId = ShowTetriminoTable.getUniqueId();
+        this.cells = [];
+        this.sizeX = 4;
+        this.sizeY = 2;
+    }
+
+    make(jqueryObj){
+        jqueryObj
+            .append("<tbody id=\"{0}tbody\" />".format(this.uniqueId))
+            .css({ "border-collapse": "collapse" });
+        for(var y = this.sizeY - 1; y >= 0; y--){
+            this.cells[y] = [];
+            $("#{0}tbody".format(this.uniqueId))
+                .append("<tr id=\"{0}r{1}\" />".format(this.uniqueId, y));
+            var row = $("#{0}r{1}".format(this.uniqueId, y));
+            for(var x = 0; x < this.sizeX; x++){
+                row.append("<td id=\"{0}r{1}c{2}\" />".format(this.uniqueId, y, x));
+                this.cells[y][x] = $("#{0}r{1}c{2}".format(this.uniqueId, y, x));
+            }
+        }
+        this.doToAllCell((obj, y, x)=>{
+            obj.css({
+                // "border": "1px #000000 solid",
+                "height": "32px",
+                "width": "32px"
+            });
+        });
+    }
+
+    addTetrimino(tetrimino){
+        this.doToAllCell((obj)=>{
+            obj.css({ "background-color": Colors["default"] });
+        })
+        var points = tetrimino.getBlockLocations(new Vector2());
+        points.forEach((value)=>{
+            if(this.cells[value.y] != undefined && this.cells[value.y][value.x] != undefined){
+                this.cells[value.y][value.x]
+                    .css({ "background-color": Colors[tetrimino.block] });
+            }
+        });
+    }
+
+    doToAllCell(func){
+        this.cells.forEach((valueRow, indexY)=>{
+            valueRow.forEach((valueColumn, indexX)=>{
+                func(valueColumn, indexY, indexX);
+            })
+        })
+    }
+
+    static getUniqueId(){
+        if(ShowTetriminoTable.usedUniqueId == undefined){
+            ShowTetriminoTable.usedUniqueId = 0;
+        }
+        var toUse = ShowTetriminoTable.usedUniqueId;
+        ShowTetriminoTable.usedUniqueId++;
+        return toUse;
     }
 }
 
@@ -173,7 +249,7 @@ class Field{
     expantionTetrimino(tetrimino){
         var points = tetrimino.getBlockLocations();
         points.forEach((value)=>{
-            if(this.field[value.y] != undefined && this.field[value.x] != undefined){
+            if(this.field[value.y] != undefined && this.field[value.y][value.x] != undefined){
                 //debug
                 console.log(value);
                 this.field[value.y][value.x] = new Block(true, tetrimino.block, false);
@@ -527,6 +603,20 @@ class TetriminoDicider{
         if(this.currentSet == undefined || this.currentSet.length <= 0){
             this.currentSet = this.reserveSets[0];
             this.reserveSets.shift();
+        }
+    }
+
+    getNext(num){
+        if(num < 0 && num >5){
+            throw new Error("指定されたnumはサポートされていません。");
+        }
+        if(this.currentSet.length - 1 >= num){
+            return this.currentSet[num];
+        }else{
+            var refSet = Math.floor((num - this.currentSet.length) / this.reserveSets[0].length);
+            var refIndex = (num - this.currentSet.length) % this.reserveSets[0].length;
+            console.log(num, refSet, refIndex);
+            return this.reserveSets[refSet][refIndex];
         }
     }
 }
