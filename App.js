@@ -163,9 +163,6 @@ class Field{
         console.log("generated tetrimino");
         this.reloadCurrentTetrimino();
     }
-    // ---------------
-    // ラインを消す時に配列ごと代入してるのがいけない気がするけどわからない
-    // ---------------
 
     // ゲームオーバー時のイベントを追加します。
     addGameOverEvent(func){
@@ -264,6 +261,25 @@ class Field{
         moved.rotateTetrimino(number);
         if(this.canMoveTetrimino(moved)){
             this.currentTetrimino = moved;
+        }else{
+            // 回転させることができない場合は最大2マス上下左右に動かせるものとする
+            // 優先度は1マス->2マスで、左->右->上->下
+            var priorityOrder = ["left", "right", "up", "down"];
+            var toBreak = false;
+            for(var moveBlocks = 1; moveBlocks <= 2; moveBlocks++){
+                for(var i = 0; i < 4; i++){
+                    var moved2 = moved.clone();
+                    moved2.move(priorityOrder[i], moveBlocks);
+                    if(this.canMoveTetrimino(moved2)){
+                        this.currentTetrimino = moved2;
+                        toBreak = true;
+                        break;
+                    }
+                }
+                if(toBreak){
+                    break;
+                }
+            }
         }
         this.reloadCurrentTetrimino();
     }
