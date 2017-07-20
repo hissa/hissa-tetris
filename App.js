@@ -32,6 +32,9 @@ class App{
         for(var i = 0; i<= 4; i++){
             App.nexts[i].addTetrimino(new Tetrimino(App.field.dicider.getNext(i)));
         }
+        if(App.field.hold != null){
+            App.hold.addTetrimino(App.field.hold);
+        }
     }
 
     static down(){
@@ -65,6 +68,10 @@ class App{
                     App.show();
                     break;
                 case "up":
+                    break;
+                case "hold":
+                    App.field.holdTetrimino();
+                    App.show();
                     break;
                 default:
                     break;
@@ -210,6 +217,8 @@ class Field{
         this.gameOverEvent = null;
         this.gameOvered = false;
         this.needRockdown = false;
+        this.hold = null;
+        this.usedHold = false;
         setInterval(()=>{
             if(this.needRockdown){
                 this.needRockdown = false;
@@ -386,6 +395,7 @@ class Field{
         });
         this.removeLines();
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get(), new Vector2(0,0)));
+        this.usedHold = false;
     }
 
     removeLines(){
@@ -422,6 +432,22 @@ class Field{
             }
         });
         return lines;
+    }
+
+    holdTetrimino(){
+        if(!this.usedHold){
+            var current = this.currentTetrimino.clone();
+            if(this.hold == null){
+                this.hold = new Tetrimino(current.block);
+                this.addCurrentTetrimino(new Tetrimino(this.dicider.get()))
+            }else{
+                this.removeAirBlock();
+                this.addCurrentTetrimino(this.hold);
+                this.hold = new Tetrimino(current.block);
+            }
+            this.reloadCurrentTetrimino();
+            this.usedHold = true;
+        }
     }
 }
 
@@ -776,7 +802,8 @@ var Keys = {
     83: "down",
     68: "right",
     37: "antiClockwize",
-    38: "clockwize"
+    38: "clockwize",
+    16: "hold"
 };
 
 App.main();
