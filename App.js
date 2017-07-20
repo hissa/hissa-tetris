@@ -3,7 +3,7 @@ class App{
         App.table = new FieldTable(10, 20);
         App.table.make($("#field"));
         App.field = new Field();
-        App.field.addCurrentTetrimino(new Tetrimino("T", new Vector2(0, 0)));
+        App.field.start();
         App.show();
         App.addEventListeners();
         setInterval(()=>{
@@ -140,6 +140,11 @@ class Field{
                 this.rockdown();
             }
         }, 10);
+    }
+
+    // ゲームを開始します。
+    start(){
+        this.addCurrentTetrimino(new Tetrimino(this.dicider.get()));
     }
 
     // 落ちてくるテトリミノを追加します。
