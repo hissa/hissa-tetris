@@ -18,11 +18,11 @@ class App{
     }
 
     static makeShowTetriminoTables(){
-        App.hold = new ShowTetriminoTable();
+        App.hold = new ShowTetriminoTable("HOLD");
         App.hold.make($("#hold"));
         App.nexts = [];
         for(var i = 0; i <= 4; i++){
-            App.nexts[i] = new ShowTetriminoTable();
+            App.nexts[i] = new ShowTetriminoTable(i == 0 ? "NEXT" : null);
             App.nexts[i].make($("#next{0}".format(i)));
         }
     }
@@ -146,17 +146,23 @@ class FieldTable{
 }
 
 class ShowTetriminoTable{
-    constructor(){
+    constructor(title = null){
         this.uniqueId = ShowTetriminoTable.getUniqueId();
         this.cells = [];
         this.sizeX = 4;
         this.sizeY = 2;
+        this.title = title;
+        this.titleArea = null;
     }
 
     make(jqueryObj){
         jqueryObj
+            .append("<thead id=\"{0}thead\" />".format(this.uniqueId))
             .append("<tbody id=\"{0}tbody\" />".format(this.uniqueId))
             .css({ "border-collapse": "collapse" });
+        if(this.title != null){
+            this.makeTitleArea();
+        }
         for(var y = this.sizeY - 1; y >= 0; y--){
             this.cells[y] = [];
             $("#{0}tbody".format(this.uniqueId))
@@ -174,6 +180,22 @@ class ShowTetriminoTable{
                 "width": "32px"
             });
         });
+    }
+
+    makeTitleArea(){
+        $("#{0}thead".format(this.uniqueId))
+            .append("<tr id=\"{0}titleRow\" />".format(this.uniqueId));
+        $("#{0}titleRow".format(this.uniqueId))
+            .append("<th id=\"{0}title\" />".format(this.uniqueId))
+            .css({ "border-bottom": "1px #000000 solid" });
+        this.titleArea = $("#{0}title".format(this.uniqueId));
+        this.titleArea.attr({ "colspan": "4" });
+        this.setTitle(this.title);
+    }
+
+    setTitle(title){
+        this.title = title;
+        this.titleArea.text(this.title);
     }
 
     addTetrimino(tetrimino){
