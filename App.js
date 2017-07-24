@@ -272,15 +272,25 @@ class Field{
         this.gameOvered = false;
     }
 
+    gameOver(){
+        this.gameOvered = true;
+        this.gameOverEvent();
+        this.doToAllblock((obj)=>{
+            if(obj.isBlock){
+                obj.color = "gameOvered";
+            }
+        });
+    }
+
     // 落ちてくるテトリミノを追加します。
     // Tetrimino tetrimino: 追加するテトリミノのオブジェクト
     addCurrentTetrimino(tetrimino){
         var setted = tetrimino.clone();
         setted.location = new Vector2(3, 20);
         if(!this.canMoveTetrimino(setted)){
+            // 追加しようとした場所に既にブロックがあればゲームオーバー
             if(this.gameOverEvent != null){
-                this.gameOvered = true;
-                this.gameOverEvent();
+                this.gameOver();
             }
         }
         this.currentTetrimino = setted;
@@ -854,7 +864,8 @@ var Colors = {
     "Z": "#FF5722",
     "J": "#3F51B5",
     "L": "#FF9800",
-    "T": "#673AB7"
+    "T": "#673AB7",
+    "gameOvered": "#848484"
 };
 
 // ゴーストの色
