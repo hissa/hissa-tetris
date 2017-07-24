@@ -12,7 +12,6 @@ class App{
     }
 
     static gameStart(){
-        App.field.start();
         App.addEventListeners();
         App.interval = setInterval(()=>{
             App.field.tick();
@@ -21,6 +20,7 @@ class App{
         App.field.addGameOverEvent(()=>{
             console.log("GameOver.");
         });
+        App.field.start();
     }
 
     static makeShowTetriminoTables(){
@@ -236,9 +236,21 @@ class ShowTetriminoTable{
 // フィールドのクラス
 class Field{
     constructor(){
-        this.sizeX = 10;
         // テトリミノの出現位置を確保するためにsizeYを24にする。
+        this.sizeX = 10;
         this.sizeY = 24;
+        this.gameOverEvent = null;
+        this.gameOvered = true;
+        setInterval(()=>{
+            if(this.needRockdown){
+                this.needRockdown = false;
+                this.rockdown();
+            }
+        });
+        this.initialize();
+    }
+
+    initialize(){
         this.field = [];
         for(var y = 0; y < this.sizeY; y++){
             this.field[y] = [];
@@ -247,30 +259,17 @@ class Field{
             }
         }
         this.currentTetrimino = null;
-        this.dicider = null;
-        this.gameOverEvent = null;
-        this.gameOvered = false;
+        this.dicider = new TetriminoDicider();
         this.needRockdown = false;
         this.hold = null;
         this.usedHold = false;
-        setInterval(()=>{
-            if(this.needRockdown){
-                this.needRockdown = false;
-                this.rockdown();
-            }
-        });
-        this.running = false;
     }
 
     // ゲームを開始します。
     start(){
-        this.dicider = new TetriminoDicider();
+        this.initialize();
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get()));
-        this.running = true;
-    }
-
-    stop(){
-        this.running = false;
+        this.gameOvered = false;
     }
 
     // 落ちてくるテトリミノを追加します。
@@ -325,6 +324,9 @@ class Field{
     }
 
     moveCurrentTetrimino(direction, distance = 1){
+        if(this.gameOvered){
+            return false;
+        }
         var moved = this.currentTetrimino.clone();
         moved.move(direction, distance);
         if(this.canMoveTetrimino(moved)){
@@ -482,6 +484,9 @@ class Field{
     }
 
     hardDrop(){
+        if(this.gameOvered){
+            return;
+        }
         this.currentTetrimino = this.getGhost().clone();
         this.reloadCurrentTetrimino();
         this.needRockdown = true;
