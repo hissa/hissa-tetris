@@ -1,20 +1,26 @@
 class App{
     static main(){
+        App.initialize();
+        App.gameStart();
+    }
+
+    static initialize(){
         App.table = new FieldTable(10, 20);
         App.table.make($("#field"));
         App.field = new Field();
         App.makeShowTetriminoTables();
+    }
+
+    static gameStart(){
         App.field.start();
-        App.show();
         App.addEventListeners();
-        setInterval(()=>{
+        App.interval = setInterval(()=>{
             App.field.tick();
             App.show();
         }, 700);
         App.field.addGameOverEvent(()=>{
             console.log("GameOver.");
         });
-        console.log("done");
     }
 
     static makeShowTetriminoTables(){
@@ -68,7 +74,6 @@ class App{
                     App.show();
                     break;
                 case "up":
-                    console.log("up");
                     App.field.hardDrop();
                     App.show();
                     break;
@@ -175,7 +180,6 @@ class ShowTetriminoTable{
         }
         this.doToAllCell((obj, y, x)=>{
             obj.css({
-                // "border": "1px #000000 solid",
                 "height": "32px",
                 "width": "32px"
             });
@@ -243,7 +247,7 @@ class Field{
             }
         }
         this.currentTetrimino = null;
-        this.dicider = new TetriminoDicider();
+        this.dicider = null;
         this.gameOverEvent = null;
         this.gameOvered = false;
         this.needRockdown = false;
@@ -254,12 +258,19 @@ class Field{
                 this.needRockdown = false;
                 this.rockdown();
             }
-        }, 10);
+        });
+        this.running = false;
     }
 
     // ゲームを開始します。
     start(){
+        this.dicider = new TetriminoDicider();
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get()));
+        this.running = true;
+    }
+
+    stop(){
+        this.running = false;
     }
 
     // 落ちてくるテトリミノを追加します。
@@ -268,14 +279,12 @@ class Field{
         var setted = tetrimino.clone();
         setted.location = new Vector2(3, 20);
         if(!this.canMoveTetrimino(setted)){
-            console.log(this.currentTetrimino);
             if(this.gameOverEvent != null){
                 this.gameOvered = true;
                 this.gameOverEvent();
             }
         }
         this.currentTetrimino = setted;
-        console.log("generated tetrimino");
         this.reloadCurrentTetrimino();
     }
 
@@ -289,8 +298,6 @@ class Field{
         var points = tetrimino.getBlockLocations();
         points.forEach((value)=>{
             if(this.field[value.y] != undefined && this.field[value.y][value.x] != undefined){
-                //debug
-                console.log(value);
                 this.field[value.y][value.x] = new Block(true, tetrimino.block, false, ghost);
             }
         });
@@ -339,15 +346,9 @@ class Field{
         var canMove = true;
         blocks.forEach((value)=>{
             if(!this.isExistsLocation(value) || this.field[value.y][value.x].isRockedDown){
-                //debug
-                console.log(value);
-                if(this.field[value.y] != undefined){
-                    console.log(this.field[value.y][value.x]);
-                }
                 canMove = false;
             }
         });
-        console.log(canMove);
         return canMove;
     }
 
@@ -437,7 +438,6 @@ class Field{
                 removedLineCount++;
             }else{
                 this.field[index - removedLineCount] = value;
-                console.log("Line moved");
             }
         });
         // このままだと上から消したライン分に参照が残るので以下のコードで初期化
@@ -500,7 +500,6 @@ class Field{
         do{
             moved2 = moved.clone();
             moved2.move("down");
-            console.log("can", this.canMoveTetrimino(moved2), moved2);
             if(this.canMoveTetrimino(moved2)){
                 moved = moved2.clone();
             }else{
@@ -593,8 +592,6 @@ class Tetrimino{
             this.rotate = this.rotatePatternNum + this.rotate;
         }
         this.setBlockLocations();
-        console.log(this.rotatePatternNum, this.rotate);
-        console.log(this.blockLocations);
     }
 
     // 時計回りに回転する
@@ -703,7 +700,6 @@ class TetriminoDicider{
         }else{
             var refSet = Math.floor((num - this.currentSet.length) / this.reserveSets[0].length);
             var refIndex = (num - this.currentSet.length) % this.reserveSets[0].length;
-            console.log(num, refSet, refIndex);
             return this.reserveSets[refSet][refIndex];
         }
     }
