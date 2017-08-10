@@ -49,9 +49,10 @@ class App{
     static makeEffectTable(){
         App.effectTable = new ShowEffectTable();
         App.effectTable.make($("#effectTable"));
-        App.field.showEffectEvent = (ren, tetris)=>{
+        App.field.showEffectEvent = (ren, tetris, perfectClear)=>{
             App.effectTable.ren = ren;
             App.effectTable.tetris = tetris;
+            App.effectTable.perfectClear = perfectClear;
             App.effectTable.show(ren, tetris);
         };
     }
@@ -473,12 +474,18 @@ class Field{
         }
         var ren = this.continueRemoveLine <= 0 ? 0 : this.continueRemoveLine - 1;
         if(!(removedLines <= 0)){
+            var perfectClear = true;
+            this.doToAllblock((block)=>{
+                if(block.isBlock){
+                    perfectClear = false;
+                }
+            });
             this.points.add(removedLines, ren);
+            this.points.perfectClear();
             this.pointChangedEvent(this.points);            
         }
         var tetris = removedLines >= 4;
-        console.log(ren, tetris);
-        this.showEffectEvent(ren, tetris);
+        this.showEffectEvent(ren, tetris, perfectClear);
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get(), new Vector2(0,0)));
         this.usedHold = false;
     }
@@ -711,7 +718,9 @@ class TetriminoDicider{
         var ret = this.currentSet[0];
         this.currentSet.shift();
         this.makeSetsWhileNeeds();
-        return ret;
+        //debug
+        return "O";
+        // return ret;
     }
 
     isNeedsMakeSet(){
@@ -819,6 +828,7 @@ class ShowEffectTable{
         this.ren = 0;
         this.tetris = false;
         this.tSpin = false;
+        this.perfectClear = false;
         this.isMade = false;
     }
 
@@ -827,15 +837,20 @@ class ShowEffectTable{
             .append("<tbody id=\"showEffectTbody\" />");
         $("#showEffectTbody")
             .append("<tr id=\"showEffectRenTr\" />")
-            .append("<tr id=\"showEffectTetrisTr\" />");
+            .append("<tr id=\"showEffectTetrisTr\" />")
+            .append("<tr id=\"showEffectPerfectClearTr\" />");
         $("#showEffectRenTr")
             .append("<td id=\"showEffectRenValue\" />");
         $("#showEffectTetrisTr")
             .append("<td id=\"showEffectTetrisValue\" />");
+        $("#showEffectPerfectClearTr")
+            .append("<td id=\"showEffectPerfectClearValue\" />");
         this.tetrisObj = $("#showEffectTetrisValue");
         this.renObj = $("#showEffectRenValue");
+        this.perfectClearObj = $("#showEffectPerfectClearValue");
         this.tetrisObj.text("TETRIS!");
         this.isMade = true;
+        this.perfectClearObj.text("PERFECT CLEAR!");
         this.show();
     }
 
@@ -854,6 +869,11 @@ class ShowEffectTable{
             this.tetrisObj.css({ "visibility": "" });
         }else{
             this.tetrisObj.css({ "visibility": "hidden" });
+        }
+        if(this.perfectClear){
+            this.perfectClearObj.css({ "visibility": "" });
+        }else{
+            this.perfectClearObj.css({ "visibility": "hidden" });
         }
     }
 }
