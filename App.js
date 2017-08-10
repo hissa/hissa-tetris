@@ -49,11 +49,12 @@ class App{
     static makeEffectTable(){
         App.effectTable = new ShowEffectTable();
         App.effectTable.make($("#effectTable"));
-        App.field.showEffectEvent = (ren, tetris, perfectClear)=>{
-            App.effectTable.ren = ren;
-            App.effectTable.tetris = tetris;
-            App.effectTable.perfectClear = perfectClear;
-            App.effectTable.show(ren, tetris);
+        App.field.showEffectEvent = (datas)=>{
+            App.effectTable.ren = datas.ren;
+            App.effectTable.tetris = datas.tetris;
+            App.effectTable.perfectClear = datas.perfectClear;
+            App.effectTable.backToBack = datas.backToBack;
+            App.effectTable.show();
         };
     }
 
@@ -268,6 +269,7 @@ class Field{
         this.gameOvered = true;
         this.points = new Points();
         this.continueRemoveLine = 0;
+        this.lastRemovedLines = 0;
         this.pointChangedEvent = ()=>{};
         this.showEffectEvent = ()=>{};
         setInterval(()=>{
@@ -480,12 +482,21 @@ class Field{
                     perfectClear = false;
                 }
             });
-            this.points.add(removedLines, ren);
-            this.points.perfectClear();
-            this.pointChangedEvent(this.points);            
+            var backToBack = removedLines == 4 && this.lastRemovedLines == 4;
+            this.lastRemovedLines = removedLines;
+            this.points.add(removedLines, ren, backToBack);
+            if(perfectClear){
+                this.points.perfectClear();
+            }
+            this.pointChangedEvent(this.points);
         }
         var tetris = removedLines >= 4;
-        this.showEffectEvent(ren, tetris, perfectClear);
+        this.showEffectEvent({
+            ren: ren,
+            tetris: tetris,
+            perfectClear: perfectClear,
+            backToBack: backToBack
+        });
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get(), new Vector2(0,0)));
         this.usedHold = false;
     }
@@ -718,9 +729,7 @@ class TetriminoDicider{
         var ret = this.currentSet[0];
         this.currentSet.shift();
         this.makeSetsWhileNeeds();
-        //debug
-        return "O";
-        // return ret;
+        return ret;
     }
 
     isNeedsMakeSet(){
@@ -777,11 +786,15 @@ class Points{
         this.point = 0;
     }
 
-    add(line, ren){
+    add(line, ren, backToBack = false){
         this.line += line;
         line = line > 5 ? 5 : line;
         ren = ren > 5 ? 5 : ren;
-        this.point += PointTable.line[line] * PointTable.ren[ren];
+        var addpoint = PointTable.line[line] * PointTable.ren[ren];
+        if(backToBack){
+            addpoint *= PointTable.backToBack;
+        }
+        this.point += addpoint;
     }
 
     perfectClear(){
@@ -829,6 +842,7 @@ class ShowEffectTable{
         this.tetris = false;
         this.tSpin = false;
         this.perfectClear = false;
+        this.backToBack = false;
         this.isMade = false;
     }
 
@@ -838,19 +852,24 @@ class ShowEffectTable{
         $("#showEffectTbody")
             .append("<tr id=\"showEffectRenTr\" />")
             .append("<tr id=\"showEffectTetrisTr\" />")
-            .append("<tr id=\"showEffectPerfectClearTr\" />");
+            .append("<tr id=\"showEffectPerfectClearTr\" />")
+            .append("<tr id=\"showEffectBackToBackTr\" />");
         $("#showEffectRenTr")
             .append("<td id=\"showEffectRenValue\" />");
         $("#showEffectTetrisTr")
             .append("<td id=\"showEffectTetrisValue\" />");
         $("#showEffectPerfectClearTr")
             .append("<td id=\"showEffectPerfectClearValue\" />");
+        $("#showEffectBackToBackTr")
+            .append("<td id=\"showEffectBackToBackValue\" />");
         this.tetrisObj = $("#showEffectTetrisValue");
         this.renObj = $("#showEffectRenValue");
         this.perfectClearObj = $("#showEffectPerfectClearValue");
         this.tetrisObj.text("TETRIS!");
-        this.isMade = true;
+        this.backToBackObj = $("#showEffectBackToBackValue");
+        this.backToBackObj.text("Back to Back!");
         this.perfectClearObj.text("PERFECT CLEAR!");
+        this.isMade = true;
         this.show();
     }
 
@@ -874,6 +893,11 @@ class ShowEffectTable{
             this.perfectClearObj.css({ "visibility": "" });
         }else{
             this.perfectClearObj.css({ "visibility": "hidden" });
+        }
+        if(this.backToBack){
+            this.backToBackObj.css({ "visibility": "" });
+        }else{
+            this.backToBackObj.css({ "visibility": "hidden" });
         }
     }
 }
@@ -1057,8 +1081,7 @@ var PointTable = {
         1: 100,
         2: 200,
         3: 300,
-        4: 400,
-        5: 700
+        4: 600
     },
     // RENの数ごとの倍率
     // 5以降は5の倍率を用いる
@@ -1071,7 +1094,9 @@ var PointTable = {
         5: 2.0
     },
     // パーフェクトクリアした場合のボーナス
-    perfectClear: 1000
+    perfectClear: 1000,
+    // Back to Backの倍率
+    backToBack: 1.2
 }
 
 App.main();
