@@ -10,6 +10,7 @@ class App{
         App.field = new Field();
         App.makeShowTetriminoTables();
         App.makePointTable();
+        App.makeEffectTable();
     }
 
     static gameStart(){
@@ -42,6 +43,16 @@ class App{
         App.pointTable.make($("#pointTable"));
         App.field.pointChangedEvent = (points)=>{
             App.pointTable.show(points);
+        };
+    }
+
+    static makeEffectTable(){
+        App.effectTable = new ShowEffectTable();
+        App.effectTable.make($("#effectTable"));
+        App.field.showEffectEvent = (ren, tetris)=>{
+            App.effectTable.ren = ren;
+            App.effectTable.tetris = tetris;
+            App.effectTable.show(ren, tetris);
         };
     }
 
@@ -257,6 +268,7 @@ class Field{
         this.points = new Points();
         this.continueRemoveLine = 0;
         this.pointChangedEvent = ()=>{};
+        this.showEffectEvent = ()=>{};
         setInterval(()=>{
             if(this.needRockdown){
                 this.needRockdown = false;
@@ -460,11 +472,13 @@ class Field{
             this.continueRemoveLine++;
         }
         var ren = this.continueRemoveLine <= 0 ? 0 : this.continueRemoveLine - 1;
-        console.log("ok");
         if(!(removedLines <= 0)){
             this.points.add(removedLines, ren);
             this.pointChangedEvent(this.points);            
         }
+        var tetris = removedLines >= 4;
+        console.log(ren, tetris);
+        this.showEffectEvent(ren, tetris);
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get(), new Vector2(0,0)));
         this.usedHold = false;
     }
@@ -797,6 +811,50 @@ class ShowPointTable{
         }
         this.lineValueObj.text(points.line);
         this.pointValueOBj.text(points.point);
+    }
+}
+
+class ShowEffectTable{
+    constructor(){
+        this.ren = 0;
+        this.tetris = false;
+        this.tSpin = false;
+        this.isMade = false;
+    }
+
+    make(jqueryObj){
+        jqueryObj
+            .append("<tbody id=\"showEffectTbody\" />");
+        $("#showEffectTbody")
+            .append("<tr id=\"showEffectRenTr\" />")
+            .append("<tr id=\"showEffectTetrisTr\" />");
+        $("#showEffectRenTr")
+            .append("<td id=\"showEffectRenValue\" />");
+        $("#showEffectTetrisTr")
+            .append("<td id=\"showEffectTetrisValue\" />");
+        this.tetrisObj = $("#showEffectTetrisValue");
+        this.renObj = $("#showEffectRenValue");
+        this.tetrisObj.text("TETRIS!");
+        this.isMade = true;
+        this.show();
+    }
+
+    show(){
+        if(!this.isMade){
+            return;
+        }
+        if(this.ren == 0){
+            this.renObj.css({ "visibility": "hidden" });
+        }else{
+            this.renObj
+                .text("{0} REN".format(this.ren))
+                .css({ "visibility": "" });
+        }
+        if(this.tetris){
+            this.tetrisObj.css({ "visibility": "" });
+        }else{
+            this.tetrisObj.css({ "visibility": "hidden" });
+        }
     }
 }
 
