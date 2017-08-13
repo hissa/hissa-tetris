@@ -1,7 +1,7 @@
 class App{
     static main(){
         App.initialize();
-        App.gameStart();
+        // App.gameStart();
     }
 
     static initialize(){
@@ -14,6 +14,9 @@ class App{
     }
 
     static gameStart(){
+        if(App.interval != undefined){
+            clearInterval(App.interval);
+        }
         App.addEventListeners();
         App.interval = setInterval(()=>{
             App.field.tick();
@@ -416,6 +419,9 @@ class Field{
     // カレントテトリミノを回転する。
     // int number: 回転する回数　正の数：反時計回り 負の数：時計回り
     rotateCurrentTetrimino(number){
+        if(this.gameOvered){
+            return;
+        }
         var moved = this.currentTetrimino.clone();
         moved.rotateTetrimino(number);
         if(this.canMoveTetrimino(moved)){
