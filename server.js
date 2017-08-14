@@ -2,33 +2,56 @@ class Server{
     static main(){
         var http = require("http");
         var socketio = require("socket.io");
+        Server.url = require("url");
         Server.fs = require("fs");
         Server.server = http.createServer(Server.routing);
         Server.server.listen(3000, ()=>{
             console.log("Server is running...");
         });
         Server.io = socketio.listen(Server.server);
-        Server.gameroom = new GameRoom();
+        Server.rooms = {"default": new GameRoom()};
+        Object.keys(Server.rooms).forEach((value)=>{
+            Server.rooms[value].distributionFunc = (data)=>{
+                Server.io.to(value).emit("ditributionPlayerScores", JSON.stringify(data));
+            };
+        });
         Server.io.sockets.on("connection", (socket)=>{
+            var name;
+            var room;
             console.log("A client connected.");
             socket.on("submitScore", (data)=>{
-                Server.gameroom.setPlayerScore(data.name, Score.parse(data.score));
-                console.log(data);
+                Server.rooms[room].setPlayerScore(name, Score.parse(data.score));
             });
-            socket.on("playerJoin", (data)=>{
-                Server.gameroom.join(data.name);
-                console.log(data.name + " joined to the game.");
+            socket.on("playerJoinToRoom", (data)=>{
+                if(!(Object.keys(Server.rooms).indexOf(data.roomName) >= 0)){
+                    console.log("存在しないルーム名が指定されました。");
+                    return;
+                }
+                if(Server.rooms[data.roomName].hasPlayer(data.name)){
+                    console.log("既にルームに入っているプレイヤーが入ろうとしました。");
+                    return;
+                }
+                Server.rooms[data.roomName].join(data.name);
+                name = data.name;
+                room = data.roomName;
+                socket.join(room);
+                socket.broadcast.to(room)
+                    .emit("playerListChanged", JSON.stringify(Server.rooms[room].playerList()));
+                console.log(data.name + "が" + data.roomName + "に接続しました。");
+            });
+            socket.on("getPlayerList", (data, ack)=>{
+                var players = Server.rooms[room].playerList();
+                ack(players);
+            });
+            socket.on("disconnect", ()=>{
+                if(name == undefined){
+                    console.log("A client disconnected.");
+                    return;
+                }
+                Server.rooms[room].removePlayer(name);
+                console.log(name + "が" + room + "から退室しました。");
             });
         });
-        setInterval(Server.playerScoresDistribution, 1000);
-    }
-
-    static playerScoresDistribution(){
-        var data = {};
-        Object.keys(Server.gameroom.scores).forEach((value)=>{
-            data[value] = Server.gameroom.scores[value].ToArray();
-        });
-        Server.io.sockets.emit("ditributionPlayerScores", data);
     }
 
     static routing(req, res){
@@ -49,6 +72,22 @@ class Server{
             res.writeHead(200, {"Content-Type": "text/javascript"});
             res.write(Server.fs.readFileSync(__dirname + "/App.js", "utf-8"));
             break;
+        case "/game/rooms":
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.write(JSON.stringify(Object.keys(Server.rooms)));
+            break;
+        // case "/game/players":
+        //     var parsedUrl = Server.url.parse(req.url, true);
+        //     var get = parsedUrl.query;
+        //     console.log(parsedUrl.query);
+        //     if(get["room"] == undefined){
+        //         res.writeHead(404);
+        //     }else{
+        //         var players = Server.rooms[get["room"]].playerList();
+        //         res.writeHead(200, {"Content-Type": "application/json"});
+        //         res.write(JSON.stringify(players));
+        //     }
+            // break;
         default:
             res.writeHead(404);
             break;
@@ -60,6 +99,10 @@ class Server{
 class GameRoom{
     constructor(){
         this.scores = [];
+        this.distributionFunc = ()=>{};
+        this.interval = setInterval(()=>{
+            this.distribution();
+        }, 1000);
     }
 
     hasPlayer(name){
@@ -88,8 +131,30 @@ class GameRoom{
         return ret;
     }
 
+    removePlayer(name){
+        if(!this.hasPlayer(name)){
+            return;
+        }
+        delete this.scores[name];
+    }
+
     playerList(){
         return Object.keys(this.scores);
+    }
+
+    distribution(){
+        var data = [];
+        this.playerList().forEach((value)=>{
+            data.push({
+                name: value,
+                scores: this.scores[value].ToArray()
+            });
+        });
+        this.distributionFunc(data);
+    }
+
+    stopDitribution(){
+        clearInterval(this.interval);
     }
 }
 

@@ -15,7 +15,7 @@ class App{
         App.makeInfoArea();
         App.addEventListeners();
         App.info.addMessage("Enterキーでゲーム開始");
-        App.server = new Server($("#connectButton"), $("#playerName"));
+        App.server = new Server($("#connectButton"), $("#playerName"), $("#rooms"));
     }
 
     static pressEnter(){
@@ -962,29 +962,70 @@ class InfoArea{
 }
 
 class Server{
-    constructor(buttonObj, nameInputObj){
+    constructor(buttonObj, nameInputObj, roomsSelectObj){
+        this.roomsSelectObj = roomsSelectObj;
         this.buttonObj = buttonObj;
         this.nameInputObj = nameInputObj;
         this.isConnecting = false;
         if(!Server.isEnable()){
-           buttonObj.text("サーバーが利用できません"); 
-           buttonObj.prop("disabled", true);
+            this.buttonObj
+                .text("サーバーが利用できません")
+                .prop("disabled", true);
+            this.roomsSelectObj
+                .prop("disabled", true);
+            this.nameInputObj
+                .prop("disabled", true);
         }else{
-            buttonObj.text("サーバーに接続");
-            buttonObj.prop("disabled", false);
-            buttonObj.on("click", ()=>{
-                this.connect();
-            });
+            this.makeRoomSelect();
+            this.buttonObj
+                .text("サーバーに接続")
+                .on("click", ()=>{
+                    this.playerName = this.nameInputObj.val();
+                    var room = this.roomsSelectObj.val();
+                    this.join(room);
+                });
+            this.connect();
         }
+    }
+
+    makeRoomSelect(){
+        $.getJSON("/game/rooms", (data)=>{
+            data.forEach((value)=>{
+                this.roomsSelectObj
+                    .append("<option value=\"{0}\">{0}</option>".format(value));
+            });
+        });
     }
 
     connect(){
         this.playerName = this.nameInputObj.val();
         this.socket = io.connect();
         this.isConnecting = true;
-        this.socket.emit("playerJoin", { name: this.playerName });
         this.socket.on("ditributionPlayerScores", (data)=>{
-            console.log(data);
+            this.playerTable.show(data);
+        });
+        this.socket.on("playerListChanged", (data)=>{
+            this.playerList = JSON.parse(data);
+            this.playerList.forEach((value)=>{
+                this.playerTable.scores[value] = new Points();
+            });
+            this.playerTable.makeBody();
+        });
+        this.playerTable = new PlayerRankingTable();
+        this.playerTable.make($("#players"));
+    }
+
+    join(roomName){
+        this.socket.emit("playerJoinToRoom", {
+            name: this.playerName,
+            roomName: roomName
+        });
+        this.socket.emit("getPlayerList", {}, (data)=>{
+            this.playerList = data;
+            this.playerList.forEach((value)=>{
+                this.playerTable.scores[value] = new Points();
+            });
+            this.playerTable.makeBody();
         });
     }
 
@@ -1005,8 +1046,50 @@ class Server{
     static isEnable(){
         return !(typeof io === "undefined");
     }
+}
 
+class PlayerRankingTable{
+    constructor(){
+        this.scores = [];
+        this.objs = [];
+    }
 
+    make(jqueryObj){
+        jqueryObj
+            .append("<thead id=\"playersThead\" />")
+            .append("<tbody id=\"playersTbody\" />");
+        $("#playersThead")
+            .append("<th>順位</th><th>プレイヤー名</th><th>LINE</th><th>スコア</th>");
+        this.tbody = $("#playersTbody");
+    }
+
+    makeBody(){
+        this.tbody.empty();
+        Object.keys(this.scores).forEach((value)=>{
+            var obj = {};
+            this.tbody.append("<tr>");
+            this.tbody.append("<td>0</td>");
+            this.tbody.append("<td id=\"{0}-name\">{0}</td>".format(value));
+            this.tbody.append("<td id=\"{0}-line\">{1}</td>"
+                .format(value, this.scores[value].line));
+            this.tbody.append("<td id=\"{0}-point\">{1}</td>"
+                .format(value, this.scores[value].point));
+            this.tbody.append("</tr>");
+            obj.name = $("#{0}-name".format(value));
+            obj.line = $("#{0}-line".format(value));
+            obj.point = $("#{0}-point".format(value));
+            this.objs[value] = obj;
+        })
+    }
+
+    show(data){
+        var dataobj = JSON.parse(data);
+        dataobj.forEach((value, index)=>{
+            this.scores[value.name] = value.scores;
+            this.objs[value.name].line.text(value.scores.line);
+            this.objs[value.name].point.text(value.scores.point);
+        });
+    }
 }
 
 // ブロックの形を定義
