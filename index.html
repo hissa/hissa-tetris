@@ -3,9 +3,12 @@
         <meta charset="utf-8">
         <!-- Include CSS -->
         <link rel="stylesheet" type="text/css" href="style.css">
+        <!-- socket.io -->
+        <script type="text/javascript" src="/socket.io/socket.io.js"></script>
     </head>
     <body>
         <div id="gameArea">
+            <div id="infoArea"></div>
             <table id="hold"></table>
             <table id="field"></table>
             <table id="next0" class="next"></table>
@@ -15,6 +18,10 @@
             <table id="next4" class="next"></table>
             <table id="pointTable"></table>
             <table id="effectTable"></table>
+        </div>
+        <div id="networkArea">
+            <input type="text" id="playerName" placeholder="プレイヤー名">
+            <button id="connectButton"></button>
         </div>
         <!-- Include jQuery -->
         <script

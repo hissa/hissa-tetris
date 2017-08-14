@@ -8,22 +8,41 @@ class App{
         App.table = new FieldTable(10, 20);
         App.table.make($("#field"));
         App.field = new Field();
+        App.gameRunning = false;
         App.makeShowTetriminoTables();
         App.makePointTable();
         App.makeEffectTable();
+        App.makeInfoArea();
+        App.addEventListeners();
+        App.info.addMessage("Enterキーでゲーム開始");
+        App.server = new Server($("#connectButton"), $("#playerName"));
+    }
+
+    static pressEnter(){
+        if(!App.gameRunning){
+            App.gameStart();
+        }
+    }
+    
+    static makeInfoArea(){
+        App.info = new InfoArea($("#infoArea"));
     }
 
     static gameStart(){
+        App.gameRunning = true;
+        App.info.clearMessage();
         if(App.interval != undefined){
             clearInterval(App.interval);
         }
-        App.addEventListeners();
         App.interval = setInterval(()=>{
             App.field.tick();
             App.show();
         }, 700);
         App.field.addGameOverEvent(()=>{
             console.log("GameOver.");
+            App.gameRunning = false;
+            App.info.clearMessage();
+            App.info.addMessage("Enterキーで再挑戦");
         });
         App.field.start();
     }
@@ -45,6 +64,7 @@ class App{
         App.pointTable = new ShowPointTable();
         App.pointTable.make($("#pointTable"));
         App.field.pointChangedEvent = (points)=>{
+            App.server.submitScore(points);
             App.pointTable.show(points);
         };
     }
@@ -90,24 +110,32 @@ class App{
                 case "left":
                 case "right":
                 case "down":
+                    if(!App.gameRunning) return;
                     App.field.moveCurrentTetrimino(Keys[keyCode]);
                     App.show();
                     break;
                 case "antiClockwize":
+                    if(!App.gameRunning) return;
                     App.field.rotateAntiClockwizeCurrentTetrimino();
                     App.show();
                     break;
                 case "clockwize":
+                    if(!App.gameRunning) return;
                     App.field.rotateClockwizeCurrentTetrimino();
                     App.show();
                     break;
                 case "up":
+                    if(!App.gameRunning) return;
                     App.field.hardDrop();
                     App.show();
                     break;
                 case "hold":
+                    if(!App.gameRunning) return;
                     App.field.holdTetrimino();
                     App.show();
+                    break;
+                case "enter":
+                    App.pressEnter();
                     break;
                 default:
                     break;
@@ -908,6 +936,78 @@ class ShowEffectTable{
     }
 }
 
+class InfoArea{
+    constructor(jqueryObj){
+        this.messages = [];
+        this.jqueryObj = jqueryObj;
+        this.jqueryObj.css({ "height": "3em" });
+    }
+
+    show(){
+        this.jqueryObj.empty();
+        this.messages.forEach((value)=>{
+            this.jqueryObj.append("<p>" + value + "</p>");
+        });
+    }
+
+    addMessage(message){
+        this.messages.push(message);
+        this.show();
+    }
+
+    clearMessage(){
+        this.messages = [];
+        this.show();
+    }
+}
+
+class Server{
+    constructor(buttonObj, nameInputObj){
+        this.buttonObj = buttonObj;
+        this.nameInputObj = nameInputObj;
+        this.isConnecting = false;
+        if(!Server.isEnable()){
+           buttonObj.text("サーバーが利用できません"); 
+           buttonObj.prop("disabled", true);
+        }else{
+            buttonObj.text("サーバーに接続");
+            buttonObj.prop("disabled", false);
+            buttonObj.on("click", ()=>{
+                this.connect();
+            });
+        }
+    }
+
+    connect(){
+        this.playerName = this.nameInputObj.val();
+        this.socket = io.connect();
+        this.isConnecting = true;
+        this.socket.emit("playerJoin", { name: this.playerName });
+        this.socket.on("ditributionPlayerScores", (data)=>{
+            console.log(data);
+        });
+    }
+
+    submitScore(points){
+        if(!this.isConnecting){
+            return;
+        }
+        var data = {
+            name: this.playerName,
+            score: {
+                line: points.line,
+                point: points.point
+            }
+        };
+        this.socket.emit("submitScore", data);
+    }
+
+    static isEnable(){
+        return !(typeof io === "undefined");
+    }
+
+
+}
 
 // ブロックの形を定義
 // 出現エリアの左下を原点とした場合のそこからの距離
@@ -1077,7 +1177,8 @@ var Keys = {
     68: "right",
     37: "antiClockwize",
     38: "clockwize",
-    16: "hold"
+    16: "hold",
+    13: "enter"
 };
 
 // ポイントテーブル

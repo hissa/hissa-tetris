@@ -1,3 +1,8 @@
+#gameArea{
+    float: left;
+    margin-right: 30px;
+}
+
 #hold{
     float: left;
     margin-right: 32px;
@@ -12,4 +17,8 @@
 .next{
     margin-bottom:16px;
     border: 1px #000000 solid;
+}
+
+#networkArea{
+    float: left;
 }
