@@ -34,10 +34,12 @@ class App{
         if(App.interval != undefined){
             clearInterval(App.interval);
         }
+        App.defaultFallSpeed = 500;
+        App.fastFallNum = 0;
         App.interval = setInterval(()=>{
             App.field.tick();
             App.show();
-        }, 700);
+        }, App.defaultFallSpeed);
         App.field.addGameOverEvent(()=>{
             console.log("GameOver.");
             App.gameRunning = false;
@@ -45,6 +47,14 @@ class App{
             App.info.addMessage("Enterキーで再挑戦");
         });
         App.field.start();
+    }
+
+    static changeTickInterval(interval){
+        clearInterval(App.interval);
+        App.interval = setInterval(()=>{
+            App.field.tick();
+            App.show();
+        }, interval);
     }
 
     static makeShowTetriminoTables(){
@@ -66,6 +76,9 @@ class App{
         App.field.pointChangedEvent = (points)=>{
             App.server.submitScore(points);
             App.pointTable.show(points);
+            App.fastFallNum = Math.floor(points.line / 10) * 100;
+            var speed = App.defaultFallSpeed - App.fastFallNum;
+            App.changeTickInterval(speed < 1 ? 1 : speed);
         };
     }
 
