@@ -49,6 +49,8 @@ class Server{
                     return;
                 }
                 Server.rooms[room].removePlayer(name);
+                socket.broadcast.to(room)
+                    .emit("playerListChanged", JSON.stringify(Server.rooms[room].playerList()));
                 console.log(name + "が" + room + "から退室しました。");
             });
         });

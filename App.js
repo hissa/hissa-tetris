@@ -998,7 +998,6 @@ class Server{
     }
 
     connect(){
-        this.playerName = this.nameInputObj.val();
         this.socket = io.connect();
         this.isConnecting = true;
         this.socket.on("ditributionPlayerScores", (data)=>{
@@ -1020,6 +1019,10 @@ class Server{
     }
 
     join(roomName){
+        this.playerName = this.nameInputObj.val();
+        this.buttonObj.prop("disabled", true);
+        this.nameInputObj.prop("disabled", true);
+        this.roomsSelectObj.prop("disabled", true);
         this.socket.emit("playerJoinToRoom", {
             name: this.playerName,
             roomName: roomName
