@@ -41,3 +41,19 @@
 .keyconfig td{
     border: 1px #000000 solid;    
 }
+
+#players{
+    border-collapse: collapse;
+}
+
+#players td{
+    border: 1px #000000 solid;
+}
+
+#players th{
+    border: 1px #000000 solid;
+}
+
+#players .me{
+    background-color: skyblue;
+}

@@ -1023,6 +1023,7 @@ class Server{
         this.buttonObj.prop("disabled", true);
         this.nameInputObj.prop("disabled", true);
         this.roomsSelectObj.prop("disabled", true);
+        this.playerTable.myName = this.playerName;
         this.socket.emit("playerJoinToRoom", {
             name: this.playerName,
             roomName: roomName
@@ -1059,10 +1060,11 @@ class Server{
 }
 
 class PlayerRankingTable{
-    constructor(){
+    constructor(myName = ""){
         // this.scores = [];
         this.objs = [];
         this.playerList = [];
+        this.myName = myName;
     }
 
     make(jqueryObj){
@@ -1106,9 +1108,14 @@ class PlayerRankingTable{
             // this.objs[value.name].point.text(value.scores.point);
             // console.log(this.objs);
             // this.scores[rankNum] = value.scores;
-            this.objs[rankNum - 1].name.text(value.name);
-            this.objs[rankNum - 1].line.text(value.scores.line);
-            this.objs[rankNum - 1].point.text(value.scores.point);
+            this.objs[rankNum - 1].name.text(value.name).removeClass("me");
+            this.objs[rankNum - 1].line.text(value.scores.line).removeClass("me");
+            this.objs[rankNum - 1].point.text(value.scores.point).removeClass("me");
+            if(this.objs[rankNum - 1].name.text() == this.myName){
+                this.objs[rankNum - 1].name.addClass("me");
+                this.objs[rankNum - 1].line.addClass("me");
+                this.objs[rankNum - 1].point.addClass("me");
+            }
             rankNum++;
         });
     }
