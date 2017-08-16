@@ -9,15 +9,31 @@
     <body>
         <div id="gameArea">
             <div id="infoArea"></div>
-            <table id="hold"></table>
-            <table id="field"></table>
-            <table id="next0" class="next"></table>
-            <table id="next1" class="next"></table>
-            <table id="next2" class="next"></table>
-            <table id="next3" class="next"></table>
-            <table id="next4" class="next"></table>
-            <table id="pointTable"></table>
-            <table id="effectTable"></table>
+            <div class="left">
+                <table id="hold"></table>
+                <table class="keyconfig">
+                    <tbody>
+                        <tr><td>左移動</td><td>A</td></tr>
+                        <tr><td>右移動</td><td>D</td></tr>
+                        <tr><td>落下を加速</td><td>S</td></tr>
+                        <tr><td>一瞬で落とす</td><td>W</td></tr>
+                        <tr><td>右回転</td><td>↑</td></tr>
+                        <tr><td>左回転</td><td>←</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="center">
+                <table id="field"></table>
+            </div>
+            <div class="right">
+                <table id="next0" class="next"></table>
+                <table id="next1" class="next"></table>
+                <table id="next2" class="next"></table>
+                <table id="next3" class="next"></table>
+                <table id="next4" class="next"></table>
+                <table id="pointTable"></table>
+                <table id="effectTable"></table>
+            </div>
         </div>
         <div id="networkArea">
             <p><select id="rooms"></select></p>
