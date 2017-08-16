@@ -1007,8 +1007,12 @@ class Server{
         this.socket.on("playerListChanged", (data)=>{
             this.playerList = JSON.parse(data);
             this.playerList.forEach((value)=>{
-                this.playerTable.scores[value] = new Points();
+                // this.playerTable.scores[value] = new Points();
+                // if(!(value in this.playerTable.scores)){
+                    // this.playerTable.scores.push(value);
+                // }
             });
+            this.playerTable.playerList = this.playerList;
             this.playerTable.makeBody();
         });
         this.playerTable = new PlayerRankingTable();
@@ -1023,8 +1027,11 @@ class Server{
         this.socket.emit("getPlayerList", {}, (data)=>{
             this.playerList = data;
             this.playerList.forEach((value)=>{
-                this.playerTable.scores[value] = new Points();
+                // this.playerTable.scores[this.playerTable.scores.length]
+                //     = new Points();
+                // this.playerTable.scores.push(new Points());
             });
+            this.playerTable.playerList = this.playerList;
             this.playerTable.makeBody();
         });
     }
@@ -1050,8 +1057,9 @@ class Server{
 
 class PlayerRankingTable{
     constructor(){
-        this.scores = [];
+        // this.scores = [];
         this.objs = [];
+        this.playerList = [];
     }
 
     make(jqueryObj){
@@ -1065,29 +1073,40 @@ class PlayerRankingTable{
 
     makeBody(){
         this.tbody.empty();
-        Object.keys(this.scores).forEach((value)=>{
+        var rankNum = 1;
+        this.objs = [];
+        Object.keys(this.playerList).forEach((value)=>{
             var obj = {};
             this.tbody.append("<tr>");
-            this.tbody.append("<td>0</td>");
-            this.tbody.append("<td id=\"{0}-name\">{0}</td>".format(value));
-            this.tbody.append("<td id=\"{0}-line\">{1}</td>"
-                .format(value, this.scores[value].line));
-            this.tbody.append("<td id=\"{0}-point\">{1}</td>"
-                .format(value, this.scores[value].point));
+            this.tbody.append("<td>"+ rankNum +"</td>");
+            this.tbody.append("<td id=\"{0}-name\">{1}</td>"
+                .format(rankNum, value));
+            this.tbody.append("<td id=\"{0}-line\">0</td>"
+                .format(rankNum));
+            this.tbody.append("<td id=\"{0}-point\">0</td>"
+                .format(rankNum));
             this.tbody.append("</tr>");
-            obj.name = $("#{0}-name".format(value));
-            obj.line = $("#{0}-line".format(value));
-            obj.point = $("#{0}-point".format(value));
-            this.objs[value] = obj;
+            obj.name = $("#{0}-name".format(rankNum));
+            obj.line = $("#{0}-line".format(rankNum));
+            obj.point = $("#{0}-point".format(rankNum));
+            this.objs[rankNum - 1] = obj;
+            rankNum++;
         })
     }
 
     show(data){
         var dataobj = JSON.parse(data);
+        var rankNum = 1;
         dataobj.forEach((value, index)=>{
-            this.scores[value.name] = value.scores;
-            this.objs[value.name].line.text(value.scores.line);
-            this.objs[value.name].point.text(value.scores.point);
+            // this.scores[value.name] = value.scores;
+            // this.objs[value.name].line.text(value.scores.line);
+            // this.objs[value.name].point.text(value.scores.point);
+            // console.log(this.objs);
+            // this.scores[rankNum] = value.scores;
+            this.objs[rankNum - 1].name.text(value.name);
+            this.objs[rankNum - 1].line.text(value.scores.line);
+            this.objs[rankNum - 1].point.text(value.scores.point);
+            rankNum++;
         });
     }
 }

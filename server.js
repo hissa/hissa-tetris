@@ -150,6 +150,15 @@ class GameRoom{
                 scores: this.scores[value].ToArray()
             });
         });
+        data = data.sort((a, b)=>{
+            if(a.scores.point == b.scores.point){
+                return 0;
+            }else if(a.scores.point < b.scores.point){
+                return 1;
+            }else{
+                return -1;
+            }
+        });
         this.distributionFunc(data);
     }
 
