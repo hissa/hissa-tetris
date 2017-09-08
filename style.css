@@ -1,15 +1,59 @@
+#gameArea{
+    margin-right: 30px;
+}
+
 #hold{
-    float: left;
     margin-right: 32px;
     border: 1px #000000 solid;
 }
 
 #field{
-    float:left;
     margin-right: 32px;
 }
 
 .next{
-    margin-bottom:16px;
+    margin-bottom: 16px;
     border: 1px #000000 solid;
+}
+
+#networkArea{
+    float: left;
+    margin-left: 32px;
+}
+
+.right{
+    float: left;
+}
+
+.center{
+    float: left;
+}
+
+.left{
+    float: left;
+}
+
+.keyconfig{
+    margin-top: 380px;
+    border-collapse: collapse;
+}
+
+.keyconfig td{
+    border: 1px #000000 solid;    
+}
+
+#players{
+    border-collapse: collapse;
+}
+
+#players td{
+    border: 1px #000000 solid;
+}
+
+#players th{
+    border: 1px #000000 solid;
+}
+
+#players .me{
+    background-color: skyblue;
 }

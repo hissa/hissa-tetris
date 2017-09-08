@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/hissa/hissa-tetris/issues"
   },
-  "homepage": "https://github.com/hissa/hissa-tetris#readme"
+  "homepage": "https://github.com/hissa/hissa-tetris#readme",
+  "dependencies": {
+    "socket.io": "^2.0.3"
+  }
 }

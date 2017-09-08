@@ -1,28 +1,60 @@
 class App{
     static main(){
         App.initialize();
-        App.gameStart();
+        // App.gameStart();
     }
 
     static initialize(){
         App.table = new FieldTable(10, 20);
         App.table.make($("#field"));
         App.field = new Field();
+        App.gameRunning = false;
         App.makeShowTetriminoTables();
         App.makePointTable();
         App.makeEffectTable();
+        App.makeInfoArea();
+        App.addEventListeners();
+        App.info.addMessage("Enterキーでゲーム開始");
+        App.server = new Server($("#connectButton"), $("#playerName"), $("#rooms"));
+    }
+
+    static pressEnter(){
+        if(!App.gameRunning){
+            App.gameStart();
+        }
+    }
+    
+    static makeInfoArea(){
+        App.info = new InfoArea($("#infoArea"));
     }
 
     static gameStart(){
-        App.addEventListeners();
+        App.gameRunning = true;
+        App.info.clearMessage();
+        if(App.interval != undefined){
+            clearInterval(App.interval);
+        }
+        App.defaultFallSpeed = 500;
+        App.fastFallNum = 0;
         App.interval = setInterval(()=>{
             App.field.tick();
             App.show();
-        }, 700);
+        }, App.defaultFallSpeed);
         App.field.addGameOverEvent(()=>{
             console.log("GameOver.");
+            App.gameRunning = false;
+            App.info.clearMessage();
+            App.info.addMessage("Enterキーで再挑戦");
         });
         App.field.start();
+    }
+
+    static changeTickInterval(interval){
+        clearInterval(App.interval);
+        App.interval = setInterval(()=>{
+            App.field.tick();
+            App.show();
+        }, interval);
     }
 
     static makeShowTetriminoTables(){
@@ -42,7 +74,11 @@ class App{
         App.pointTable = new ShowPointTable();
         App.pointTable.make($("#pointTable"));
         App.field.pointChangedEvent = (points)=>{
+            App.server.submitScore(points);
             App.pointTable.show(points);
+            App.fastFallNum = Math.floor(points.line / 10) * 100;
+            var speed = App.defaultFallSpeed - App.fastFallNum;
+            App.changeTickInterval(speed < 1 ? 1 : speed);
         };
     }
 
@@ -87,24 +123,32 @@ class App{
                 case "left":
                 case "right":
                 case "down":
+                    if(!App.gameRunning) return;
                     App.field.moveCurrentTetrimino(Keys[keyCode]);
                     App.show();
                     break;
                 case "antiClockwize":
+                    if(!App.gameRunning) return;
                     App.field.rotateAntiClockwizeCurrentTetrimino();
                     App.show();
                     break;
                 case "clockwize":
+                    if(!App.gameRunning) return;
                     App.field.rotateClockwizeCurrentTetrimino();
                     App.show();
                     break;
                 case "up":
+                    if(!App.gameRunning) return;
                     App.field.hardDrop();
                     App.show();
                     break;
                 case "hold":
+                    if(!App.gameRunning) return;
                     App.field.holdTetrimino();
                     App.show();
+                    break;
+                case "enter":
+                    App.pressEnter();
                     break;
                 default:
                     break;
@@ -416,6 +460,9 @@ class Field{
     // カレントテトリミノを回転する。
     // int number: 回転する回数　正の数：反時計回り 負の数：時計回り
     rotateCurrentTetrimino(number){
+        if(this.gameOvered){
+            return;
+        }
         var moved = this.currentTetrimino.clone();
         moved.rotateTetrimino(number);
         if(this.canMoveTetrimino(moved)){
@@ -902,6 +949,190 @@ class ShowEffectTable{
     }
 }
 
+class InfoArea{
+    constructor(jqueryObj){
+        this.messages = [];
+        this.jqueryObj = jqueryObj;
+        this.jqueryObj.css({ "height": "3em" });
+    }
+
+    show(){
+        this.jqueryObj.empty();
+        this.messages.forEach((value)=>{
+            this.jqueryObj.append("<p>" + value + "</p>");
+        });
+    }
+
+    addMessage(message){
+        this.messages.push(message);
+        this.show();
+    }
+
+    clearMessage(){
+        this.messages = [];
+        this.show();
+    }
+}
+
+class Server{
+    constructor(buttonObj, nameInputObj, roomsSelectObj){
+        this.roomsSelectObj = roomsSelectObj;
+        this.buttonObj = buttonObj;
+        this.nameInputObj = nameInputObj;
+        this.isConnecting = false;
+        if(!Server.isEnable()){
+            this.buttonObj
+                .text("サーバーが利用できません")
+                .prop("disabled", true);
+            this.roomsSelectObj
+                .prop("disabled", true);
+            this.nameInputObj
+                .prop("disabled", true);
+        }else{
+            this.makeRoomSelect();
+            this.buttonObj
+                .text("サーバーに接続")
+                .on("click", ()=>{
+                    this.playerName = this.nameInputObj.val();
+                    var room = this.roomsSelectObj.val();
+                    this.join(room);
+                });
+            this.connect();
+        }
+    }
+
+    makeRoomSelect(){
+        $.getJSON("/game/rooms", (data)=>{
+            data.forEach((value)=>{
+                this.roomsSelectObj
+                    .append("<option value=\"{0}\">{0}</option>".format(value));
+            });
+        });
+    }
+
+    connect(){
+        this.socket = io.connect();
+        this.isConnecting = true;
+        this.socket.on("ditributionPlayerScores", (data)=>{
+            this.playerTable.show(data);
+        });
+        this.socket.on("playerListChanged", (data)=>{
+            this.playerList = JSON.parse(data);
+            this.playerList.forEach((value)=>{
+                // this.playerTable.scores[value] = new Points();
+                // if(!(value in this.playerTable.scores)){
+                    // this.playerTable.scores.push(value);
+                // }
+            });
+            this.playerTable.playerList = this.playerList;
+            this.playerTable.makeBody();
+        });
+        this.playerTable = new PlayerRankingTable();
+        this.playerTable.make($("#players"));
+    }
+
+    join(roomName){
+        this.playerName = this.nameInputObj.val();
+        this.buttonObj.prop("disabled", true);
+        this.nameInputObj.prop("disabled", true);
+        this.roomsSelectObj.prop("disabled", true);
+        this.playerTable.myName = this.playerName;
+        this.socket.emit("playerJoinToRoom", {
+            name: this.playerName,
+            roomName: roomName
+        });
+        this.socket.emit("getPlayerList", {}, (data)=>{
+            this.playerList = data;
+            this.playerList.forEach((value)=>{
+                // this.playerTable.scores[this.playerTable.scores.length]
+                //     = new Points();
+                // this.playerTable.scores.push(new Points());
+            });
+            this.playerTable.playerList = this.playerList;
+            this.playerTable.makeBody();
+        });
+    }
+
+    submitScore(points){
+        if(!this.isConnecting){
+            return;
+        }
+        var data = {
+            name: this.playerName,
+            score: {
+                line: points.line,
+                point: points.point
+            }
+        };
+        this.socket.emit("submitScore", data);
+    }
+
+    static isEnable(){
+        return !(typeof io === "undefined");
+    }
+}
+
+class PlayerRankingTable{
+    constructor(myName = ""){
+        // this.scores = [];
+        this.objs = [];
+        this.playerList = [];
+        this.myName = myName;
+    }
+
+    make(jqueryObj){
+        jqueryObj
+            .append("<thead id=\"playersThead\" />")
+            .append("<tbody id=\"playersTbody\" />");
+        $("#playersThead")
+            .append("<th>順位</th><th>プレイヤー名</th><th>LINE</th><th>スコア</th>");
+        this.tbody = $("#playersTbody");
+    }
+
+    makeBody(){
+        this.tbody.empty();
+        var rankNum = 1;
+        this.objs = [];
+        Object.keys(this.playerList).forEach((value)=>{
+            var obj = {};
+            this.tbody.append("<tr>");
+            this.tbody.append("<td>"+ rankNum +"</td>");
+            this.tbody.append("<td id=\"{0}-name\">{1}</td>"
+                .format(rankNum, value));
+            this.tbody.append("<td id=\"{0}-line\">0</td>"
+                .format(rankNum));
+            this.tbody.append("<td id=\"{0}-point\">0</td>"
+                .format(rankNum));
+            this.tbody.append("</tr>");
+            obj.name = $("#{0}-name".format(rankNum));
+            obj.line = $("#{0}-line".format(rankNum));
+            obj.point = $("#{0}-point".format(rankNum));
+            this.objs[rankNum - 1] = obj;
+            rankNum++;
+        })
+    }
+
+    show(data){
+        var dataobj = JSON.parse(data);
+        var rankNum = 1;
+        dataobj.forEach((value, index)=>{
+            // this.scores[value.name] = value.scores;
+            // this.objs[value.name].line.text(value.scores.line);
+            // this.objs[value.name].point.text(value.scores.point);
+            // console.log(this.objs);
+            // this.scores[rankNum] = value.scores;
+            this.objs[rankNum - 1].name.text(value.name).removeClass("me");
+            this.objs[rankNum - 1].line.text(value.scores.line).removeClass("me");
+            this.objs[rankNum - 1].point.text(value.scores.point).removeClass("me");
+            if(this.objs[rankNum - 1].name.text() == this.myName){
+                this.objs[rankNum - 1].name.addClass("me");
+                this.objs[rankNum - 1].line.addClass("me");
+                this.objs[rankNum - 1].point.addClass("me");
+            }
+            rankNum++;
+        });
+    }
+}
 
 // ブロックの形を定義
 // 出現エリアの左下を原点とした場合のそこからの距離
@@ -1071,7 +1302,8 @@ var Keys = {
     68: "right",
     37: "antiClockwize",
     38: "clockwize",
-    16: "hold"
+    16: "hold",
+    13: "enter"
 };
 
 // ポイントテーブル
