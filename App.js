@@ -9,6 +9,8 @@ class App{
         App.table.make($("#field"));
         App.field = new Field();
         App.makeShowTetriminoTables();
+        App.makePointTable();
+        App.makeEffectTable();
     }
 
     static gameStart(){
@@ -29,8 +31,31 @@ class App{
         App.nexts = [];
         for(var i = 0; i <= 4; i++){
             App.nexts[i] = new ShowTetriminoTable(i == 0 ? "NEXT" : null);
+            if(i != 0){
+                App.nexts[i].blockSize = 25;
+            }
             App.nexts[i].make($("#next{0}".format(i)));
         }
+    }
+
+    static makePointTable(){
+        App.pointTable = new ShowPointTable();
+        App.pointTable.make($("#pointTable"));
+        App.field.pointChangedEvent = (points)=>{
+            App.pointTable.show(points);
+        };
+    }
+
+    static makeEffectTable(){
+        App.effectTable = new ShowEffectTable();
+        App.effectTable.make($("#effectTable"));
+        App.field.showEffectEvent = (datas)=>{
+            App.effectTable.ren = datas.ren;
+            App.effectTable.tetris = datas.tetris;
+            App.effectTable.perfectClear = datas.perfectClear;
+            App.effectTable.backToBack = datas.backToBack;
+            App.effectTable.show();
+        };
     }
 
     static show(){
@@ -151,13 +176,14 @@ class FieldTable{
 }
 
 class ShowTetriminoTable{
-    constructor(title = null){
+    constructor(title = null, blockSize = 32){
         this.uniqueId = ShowTetriminoTable.getUniqueId();
         this.cells = [];
         this.sizeX = 4;
         this.sizeY = 2;
         this.title = title;
         this.titleArea = null;
+        this.blockSize = blockSize;
     }
 
     make(jqueryObj){
@@ -180,8 +206,8 @@ class ShowTetriminoTable{
         }
         this.doToAllCell((obj, y, x)=>{
             obj.css({
-                "height": "32px",
-                "width": "32px"
+                "height": "{0}px".format(this.blockSize),
+                "width": "{0}px".format(this.blockSize)
             });
         });
     }
@@ -241,6 +267,11 @@ class Field{
         this.sizeY = 24;
         this.gameOverEvent = null;
         this.gameOvered = true;
+        this.points = new Points();
+        this.continueRemoveLine = 0;
+        this.lastRemovedLines = 0;
+        this.pointChangedEvent = ()=>{};
+        this.showEffectEvent = ()=>{};
         setInterval(()=>{
             if(this.needRockdown){
                 this.needRockdown = false;
@@ -437,7 +468,35 @@ class Field{
                 value.rockDown();
             }
         });
-        this.removeLines();
+        var removedLines = this.removeLines();
+        if(removedLines <= 0){
+            this.continueRemoveLine = 0;
+        }else{
+            this.continueRemoveLine++;
+        }
+        var ren = this.continueRemoveLine <= 0 ? 0 : this.continueRemoveLine - 1;
+        if(!(removedLines <= 0)){
+            var perfectClear = true;
+            this.doToAllblock((block)=>{
+                if(block.isBlock){
+                    perfectClear = false;
+                }
+            });
+            var backToBack = removedLines == 4 && this.lastRemovedLines == 4;
+            this.lastRemovedLines = removedLines;
+            this.points.add(removedLines, ren, backToBack);
+            if(perfectClear){
+                this.points.perfectClear();
+            }
+            this.pointChangedEvent(this.points);
+        }
+        var tetris = removedLines >= 4;
+        this.showEffectEvent({
+            ren: ren,
+            tetris: tetris,
+            perfectClear: perfectClear,
+            backToBack: backToBack
+        });
         this.addCurrentTetrimino(new Tetrimino(this.dicider.get(), new Vector2(0,0)));
         this.usedHold = false;
     }
@@ -459,6 +518,7 @@ class Field{
                 this.field[i][x] = new Block();
             }
         }
+        return removedLineCount;
     }
 
     getCompletedLine(){
@@ -720,6 +780,128 @@ class TetriminoDicider{
     }
 }
 
+class Points{
+    constructor(){
+        this.line = 0;
+        this.point = 0;
+    }
+
+    add(line, ren, backToBack = false){
+        this.line += line;
+        line = line > 5 ? 5 : line;
+        ren = ren > 5 ? 5 : ren;
+        var addpoint = PointTable.line[line] * PointTable.ren[ren];
+        if(backToBack){
+            addpoint *= PointTable.backToBack;
+        }
+        this.point += addpoint;
+    }
+
+    perfectClear(){
+        this.point += PointTable.perfectClear;
+    }
+}
+
+class ShowPointTable{
+    constructor(){
+        this.isMade = false;
+    }
+
+    make(jqueryObj){
+        jqueryObj
+            .append("<tbody id=\"pointTableTbody\" />");
+        $("#pointTableTbody")
+            .append("<tr id=\"pointTableLineTr\" />")
+            .append("<tr id=\"pointTablePointTr\" />");
+        $("#pointTableLineTr")
+            .append("<th id=\"pointTableLineHead\" />")
+            .append("<td id=\"pointTableLineValue\" />");
+        $("#pointTablePointTr")
+            .append("<th id=\"pointTablePointHead\" />")
+            .append("<td id=\"pointTablePointValue\" />");
+        $("#pointTableLineHead").text("LINE:");
+        $("#pointTablePointHead").text("POINT:");
+        this.lineValueObj = $("#pointTableLineValue");
+        this.pointValueOBj = $("#pointTablePointValue");
+        this.isMade = true;
+        this.show({ line: 0, point: 0 });
+    }
+
+    show(points){
+        if(!this.isMade){
+            return;
+        }
+        this.lineValueObj.text(points.line);
+        this.pointValueOBj.text(points.point);
+    }
+}
+
+class ShowEffectTable{
+    constructor(){
+        this.ren = 0;
+        this.tetris = false;
+        this.tSpin = false;
+        this.perfectClear = false;
+        this.backToBack = false;
+        this.isMade = false;
+    }
+
+    make(jqueryObj){
+        jqueryObj
+            .append("<tbody id=\"showEffectTbody\" />");
+        $("#showEffectTbody")
+            .append("<tr id=\"showEffectRenTr\" />")
+            .append("<tr id=\"showEffectTetrisTr\" />")
+            .append("<tr id=\"showEffectPerfectClearTr\" />")
+            .append("<tr id=\"showEffectBackToBackTr\" />");
+        $("#showEffectRenTr")
+            .append("<td id=\"showEffectRenValue\" />");
+        $("#showEffectTetrisTr")
+            .append("<td id=\"showEffectTetrisValue\" />");
+        $("#showEffectPerfectClearTr")
+            .append("<td id=\"showEffectPerfectClearValue\" />");
+        $("#showEffectBackToBackTr")
+            .append("<td id=\"showEffectBackToBackValue\" />");
+        this.tetrisObj = $("#showEffectTetrisValue");
+        this.renObj = $("#showEffectRenValue");
+        this.perfectClearObj = $("#showEffectPerfectClearValue");
+        this.tetrisObj.text("TETRIS!");
+        this.backToBackObj = $("#showEffectBackToBackValue");
+        this.backToBackObj.text("Back to Back!");
+        this.perfectClearObj.text("PERFECT CLEAR!");
+        this.isMade = true;
+        this.show();
+    }
+
+    show(){
+        if(!this.isMade){
+            return;
+        }
+        if(this.ren == 0){
+            this.renObj.css({ "visibility": "hidden" });
+        }else{
+            this.renObj
+                .text("{0} REN".format(this.ren))
+                .css({ "visibility": "" });
+        }
+        if(this.tetris){
+            this.tetrisObj.css({ "visibility": "" });
+        }else{
+            this.tetrisObj.css({ "visibility": "hidden" });
+        }
+        if(this.perfectClear){
+            this.perfectClearObj.css({ "visibility": "" });
+        }else{
+            this.perfectClearObj.css({ "visibility": "hidden" });
+        }
+        if(this.backToBack){
+            this.backToBackObj.css({ "visibility": "" });
+        }else{
+            this.backToBackObj.css({ "visibility": "hidden" });
+        }
+    }
+}
+
 
 // ブロックの形を定義
 // 出現エリアの左下を原点とした場合のそこからの距離
@@ -891,5 +1073,30 @@ var Keys = {
     38: "clockwize",
     16: "hold"
 };
+
+// ポイントテーブル
+var PointTable = {
+    // 一度に消したラインでのポイント数
+    line: {
+        1: 100,
+        2: 200,
+        3: 300,
+        4: 600
+    },
+    // RENの数ごとの倍率
+    // 5以降は5の倍率を用いる
+    ren: {
+        0: 1.0,
+        1: 1.2,
+        2: 1.4,
+        3: 1.6,
+        4: 1.8,
+        5: 2.0
+    },
+    // パーフェクトクリアした場合のボーナス
+    perfectClear: 1000,
+    // Back to Backの倍率
+    backToBack: 1.2
+}
 
 App.main();
