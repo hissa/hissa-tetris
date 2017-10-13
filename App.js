@@ -45,6 +45,9 @@ class App{
             App.gameRunning = false;
             App.info.clearMessage();
             App.info.addMessage("Enterキーで再挑戦");
+            var name = prompt("ランキングにスコアを登録します。\nあなたの名前を入力してください。");
+            $.get("../scores/submit.php?player={0}&score={1}"
+                .format(name, App.field.points.point));
         });
         App.field.start();
     }
