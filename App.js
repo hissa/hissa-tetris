@@ -906,8 +906,8 @@ class ShowEffectTable{
         $("#showEffectTbody")
             .append("<tr id=\"showEffectRenTr\" />")
             .append("<tr id=\"showEffectTetrisTr\" />")
-            .append("<tr id=\"showEffectPerfectClearTr\" />")
-            .append("<tr id=\"showEffectBackToBackTr\" />");
+            .append("<tr id=\"showEffectBackToBackTr\" />")
+            .append("<tr id=\"showEffectPerfectClearTr\" />");
         $("#showEffectRenTr")
             .append("<td id=\"showEffectRenValue\" />");
         $("#showEffectTetrisTr")
@@ -919,9 +919,9 @@ class ShowEffectTable{
         this.tetrisObj = $("#showEffectTetrisValue");
         this.renObj = $("#showEffectRenValue");
         this.perfectClearObj = $("#showEffectPerfectClearValue");
-        this.tetrisObj.text("TETRIS!");
+        // this.tetrisObj.text("TETRIS!");
         this.backToBackObj = $("#showEffectBackToBackValue");
-        this.backToBackObj.text("Back to Back!");
+        // this.backToBackObj.text("Back to Back!");
         this.perfectClearObj.text("PERFECT CLEAR!");
         this.isMade = true;
         this.show();
@@ -935,11 +935,14 @@ class ShowEffectTable{
             this.renObj.css({ "visibility": "hidden" });
         }else{
             this.renObj
-                .text("{0} REN".format(this.ren))
+                .text("{0}".format(this.ren))
                 .css({ "visibility": "" });
         }
         if(this.tetris){
             this.tetrisObj.css({ "visibility": "" });
+            setTimeout(()=>{
+                this.tetrisObj.css({ "visibility": "hidden" });
+            }, 1500);
         }else{
             this.tetrisObj.css({ "visibility": "hidden" });
         }
@@ -950,6 +953,9 @@ class ShowEffectTable{
         }
         if(this.backToBack){
             this.backToBackObj.css({ "visibility": "" });
+            setTimeout(()=>{
+                this.backToBackObj.css({ "visibility": "hidden" });
+            }, 1500);
         }else{
             this.backToBackObj.css({ "visibility": "hidden" });
         }
@@ -1308,7 +1314,9 @@ var Keys = {
     83: "down",
     68: "right",
     37: "antiClockwize",
+    40: "antiClockwize",
     38: "clockwize",
+    39: "clockwize",
     16: "hold",
     13: "enter"
 };

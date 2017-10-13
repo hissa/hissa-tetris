@@ -1,3 +1,7 @@
+body{
+     
+}
+
 #gameArea{
     margin-right: 30px;
 }
@@ -34,8 +38,9 @@
 }
 
 .keyconfig{
-    margin-top: 380px;
+    /*margin-top: 380px;*/
     border-collapse: collapse;
+    margin-top: 80px;
 }
 
 .keyconfig td{
@@ -57,3 +62,42 @@
 #players .me{
     background-color: skyblue;
 }
+
+#networkArea{
+    display:none;
+}
+
+#pointTable{
+    margin-top: 250px;
+}
+
+#effectTable{
+    /*border: 1px #000000 solid;*/
+}
+
+#showEffectRenValue{
+    background-image: url("./resource/ren.png");
+    height: 63px;
+    width: 203px;
+    font-size: 3em;
+    text-align: right;
+    background-repeat: no-repeat;
+}
+
+#showEffectTetrisValue{
+    background-image: url("./resource/tetris.gif");
+    background-size: contain;
+    background-repeat: no-repeat;
+    height:63; 
+    padding-bottom: 0;
+}
+
+#showEffectBackToBackValue{
+    background-image: url("./resource/back-to-back.png");
+    height: 63px;
+    width: 203px;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+/*203, 63*/
